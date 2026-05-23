@@ -1,0 +1,120 @@
+{{- if .Values.sandbox.enabled -}}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "agentflow.fullname" . }}-sandbox
+  namespace: {{ .Values.global.namespace }}
+  labels:
+    {{- include "agentflow.labels" . | nindent 4 }}
+    component: sandbox
+    version: {{ .Values.sandbox.version }}
+spec:
+  replicas: {{ .Values.sandbox.replicas }}
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: {{ include "agentflow.name" . }}
+      app.kubernetes.io/instance: {{ .Release.Name }}
+      component: sandbox
+      version: {{ .Values.sandbox.version }}
+  template:
+    metadata:
+      labels:
+        {{- include "agentflow.labels" . | nindent 8 }}
+        component: sandbox
+        version: {{ .Values.sandbox.version }}
+    spec:
+      {{- with .Values.global.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1001
+      containers:
+        - name: sandbox
+          image: {{ include "agentflow.image" (dict "Values" .Values "name" .Values.sandbox.image.name) }}
+          ports:
+            - containerPort: 4000
+              name: rpc
+          env:
+            - name: SANDBOX_PORT
+              value: '4000'
+            - name: ISOLATE_MEMORY_MB
+              value: {{ .Values.sandbox.isolate.memoryMb | quote }}
+            - name: ISOLATE_TIMEOUT_MS
+              value: {{ .Values.sandbox.isolate.timeoutMs | quote }}
+          # 强安全策略：用户 Skill 代码不可信
+          securityContext:
+            allowPrivilegeEscalation: {{ .Values.sandbox.securityContext.allowPrivilegeEscalation }}
+            readOnlyRootFilesystem: {{ .Values.sandbox.securityContext.readOnlyRootFilesystem }}
+            runAsNonRoot: true
+            capabilities:
+              drop: ['ALL']
+          volumeMounts:
+            - name: tmp
+              mountPath: /tmp
+          resources:
+            {{- toYaml .Values.sandbox.resources | nindent 12 }}
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 4000
+            initialDelaySeconds: 15
+          readinessProbe:
+            httpGet:
+              path: /health/ready
+              port: 4000
+            initialDelaySeconds: 5
+      volumes:
+        - name: tmp
+          emptyDir:
+            sizeLimit: 64Mi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "agentflow.fullname" . }}-sandbox
+  namespace: {{ .Values.global.namespace }}
+spec:
+  selector:
+    app.kubernetes.io/name: {{ include "agentflow.name" . }}
+    app.kubernetes.io/instance: {{ .Release.Name }}
+    component: sandbox
+    # 蓝绿发布只需改这一行（或 helm upgrade --set sandbox.version=v2）
+    version: {{ .Values.sandbox.version }}
+  ports:
+    - name: rpc
+      port: 4000
+      targetPort: 4000
+{{- if .Values.sandbox.networkPolicy.enabled }}
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: {{ include "agentflow.fullname" . }}-sandbox-egress
+  namespace: {{ .Values.global.namespace }}
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: {{ include "agentflow.name" . }}
+      component: sandbox
+  policyTypes: ['Egress']
+  egress:
+    # 只放行 DNS
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: kube-system
+      ports:
+        - protocol: UDP
+          port: 53
+    # 放行 OTel
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: observability
+      ports:
+        - protocol: TCP
+          port: 4318
+{{- end }}
+{{- end }}

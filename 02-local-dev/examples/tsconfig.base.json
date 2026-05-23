@@ -1,0 +1,45 @@
+{
+  "compilerOptions": {
+    // ── 编译目标 ──────────────────────────────────────────────────────
+    // Node.js 18+ 原生支持 ES2022，无需 downcompile
+    // 保留 async/await、class fields、Array at() 等原生语法
+    "target": "ES2022",
+
+    // ── 类型检查（严格模式全开）────────────────────────────────────────
+    // 严格模式在 Agent 代码中尤其重要：
+    // LLM 返回的 JSON 结构不确定，strictNullChecks 强制处理 undefined/null
+    // 避免 "Cannot read property of undefined" 在运行时才暴露
+    "strict": true,
+
+    // 区分 { prop: undefined } 和 {} —— 两者对 agent 状态机的语义不同
+    // 例如：会话状态 { endedAt: undefined } 表示"明确未结束"
+    //       {} 表示"这个字段根本没设置过"
+    "exactOptionalPropertyTypes": true,
+
+    // ── 模块系统 ──────────────────────────────────────────────────────
+    "lib": ["ES2022"],
+
+    // ── 互操作性 ──────────────────────────────────────────────────────
+    // 允许 import Anthropic from '@anthropic-ai/sdk'（CJS 默认导出）
+    "esModuleInterop": true,
+    "allowSyntheticDefaultImports": true,
+
+    // ── 类型声明 ──────────────────────────────────────────────────────
+    "declaration": true,
+    "declarationMap": true,
+    "sourceMap": true,
+
+    // ── 其他严格选项 ──────────────────────────────────────────────────
+    // 禁止未使用的局部变量（LLM 解析代码里很容易出现）
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    // 函数的每条分支必须有明确的返回值
+    "noImplicitReturns": true,
+    // 禁止 switch 穿透（agent 状态机里 switch 非常多）
+    "noFallthroughCasesInSwitch": true,
+
+    // ── 路径 ──────────────────────────────────────────────────────────
+    "resolveJsonModule": true,
+    "skipLibCheck": true
+  }
+}

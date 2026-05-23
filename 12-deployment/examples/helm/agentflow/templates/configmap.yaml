@@ -1,0 +1,31 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "agentflow.fullname" . }}-config
+  namespace: {{ .Values.global.namespace }}
+  labels:
+    {{- include "agentflow.labels" . | nindent 4 }}
+data:
+  APP_NAME: agentflow
+  APP_ENV: production
+  LOG_FORMAT: json
+
+  # 第 4 章 LLM Gateway
+  LLM_DEFAULT_MODEL: {{ .Values.llm.defaultModel | quote }}
+  LLM_FALLBACK_MODEL: {{ .Values.llm.fallbackModel | quote }}
+  LLM_PROMPT_CACHE_ENABLED: {{ .Values.llm.promptCacheEnabled | quote }}
+  LLM_TENANT_DAILY_BUDGET_USD: {{ .Values.llm.tenantDailyBudgetUsd | quote }}
+
+  # 第 6 章 RAG
+  VECTOR_STORE: {{ .Values.rag.vectorStore | quote }}
+  EMBEDDING_PROVIDER: {{ .Values.rag.embeddingProvider | quote }}
+  RAG_TOP_K: {{ .Values.rag.topK | quote }}
+  RAG_SIMILARITY_THRESHOLD: {{ .Values.rag.similarityThreshold | quote }}
+
+  # 第 5 章 Skill 沙箱
+  SANDBOX_ENDPOINT: 'http://{{ include "agentflow.fullname" . }}-sandbox.{{ .Values.global.namespace }}.svc.cluster.local:4000'
+
+  # 第 11 章 观测
+  OTEL_SERVICE_NAME: agentflow-api
+  OTEL_TRACES_SAMPLER: parentbased_traceidratio
+  OTEL_TRACES_SAMPLER_ARG: {{ .Values.observability.tracesSampleRate | quote }}

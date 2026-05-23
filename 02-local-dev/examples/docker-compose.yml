@@ -1,0 +1,155 @@
+version: '3.9'
+
+# AgentFlow 本地开发环境
+# 包含：PostgreSQL(pgvector)、Redis、Temporal Server、Langfuse、MailHog
+# 启动命令：docker compose up -d
+# 停止命令：docker compose down
+# 清空数据：docker compose down -v
+
+services:
+  # ─────────────────────────────────────────────
+  # PostgreSQL 14 + pgvector
+  # 用途：持久化存储（tenants、sessions、向量检索）
+  # ─────────────────────────────────────────────
+  postgres:
+    image: pgvector/pgvector:pg14
+    container_name: agentflow-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: agentflow
+      POSTGRES_PASSWORD: agentflow_dev_password
+      POSTGRES_DB: agentflow
+    ports:
+      - '5432:5432'
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U agentflow -d agentflow']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ─────────────────────────────────────────────
+  # Redis 7（单节点，AOF 持久化）
+  # 用途：BullMQ 队列、分布式状态（circuit breaker、rate limiter）、会话缓存
+  # 生产注意：生产环境使用 Redis Cluster（3 主 3 从），key 命名需包含 hash tag
+  # ─────────────────────────────────────────────
+  redis:
+    image: redis:7-alpine
+    container_name: agentflow-redis
+    restart: unless-stopped
+    command: >
+      redis-server
+      --appendonly yes
+      --appendfsync everysec
+      --maxmemory 512mb
+      --maxmemory-policy allkeys-lru
+    ports:
+      - '6379:6379'
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ['CMD', 'redis-cli', 'ping']
+      interval: 10s
+      timeout: 3s
+      retries: 5
+
+  # ─────────────────────────────────────────────
+  # Temporal Server（开发模式，使用上方的 PostgreSQL 存储 workflow 历史）
+  # 用途：持久化工作流执行（会话状态机）
+  # 注意：auto-setup 镜像会自动初始化 schema，适合开发环境
+  # 生产注意：生产中 Temporal 使用独立 PostgreSQL，并部署多个 Frontend/History/Matching/Worker 服务
+  # ─────────────────────────────────────────────
+  temporal:
+    image: temporalio/auto-setup:1.24
+    container_name: agentflow-temporal
+    restart: unless-stopped
+    environment:
+      - DB=postgres12
+      - DB_PORT=5432
+      - POSTGRES_USER=agentflow
+      - POSTGRES_PWD=agentflow_dev_password
+      - POSTGRES_SEEDS=postgres
+      - DYNAMIC_CONFIG_FILE_PATH=config/dynamicconfig/development-sql.yaml
+    ports:
+      - '7233:7233'  # gRPC（Temporal SDK 连接此端口）
+    depends_on:
+      postgres:
+        condition: service_healthy
+    volumes:
+      - ./temporal-config:/etc/temporal/config/dynamicconfig
+    healthcheck:
+      test: ['CMD', 'tctl', '--address', 'localhost:7233', 'cluster', 'health']
+      interval: 15s
+      timeout: 10s
+      retries: 10
+      start_period: 30s
+
+  # Temporal Web UI（可视化查看 workflow 执行状态）
+  temporal-ui:
+    image: temporalio/ui:2.26.2
+    container_name: agentflow-temporal-ui
+    restart: unless-stopped
+    environment:
+      - TEMPORAL_ADDRESS=temporal:7233
+      - TEMPORAL_CORS_ORIGINS=http://localhost:3001
+    ports:
+      - '8080:8080'  # Temporal Web UI
+    depends_on:
+      temporal:
+        condition: service_healthy
+
+  # ─────────────────────────────────────────────
+  # Langfuse（LLM 可观测性平台，自托管）
+  # 用途：记录 LLM 调用链、评估 agent 输出质量
+  # 由两个容器组成：web（API + 前端）和 worker（异步处理）
+  # ─────────────────────────────────────────────
+  langfuse-web:
+    image: langfuse/langfuse:2
+    container_name: agentflow-langfuse-web
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    ports:
+      - '3000:3000'  # Langfuse Web UI & API
+    environment:
+      - DATABASE_URL=postgresql://agentflow:agentflow_dev_password@postgres:5432/langfuse
+      - NEXTAUTH_SECRET=langfuse_nextauth_secret_dev_only_change_in_prod
+      - SALT=langfuse_salt_dev_only_change_in_prod
+      - NEXTAUTH_URL=http://localhost:3000
+      - TELEMETRY_ENABLED=false
+      - LANGFUSE_ENABLE_EXPERIMENTAL_FEATURES=true
+      - SMTP_CONNECTION_URL=smtp://mailhog:1025
+
+  langfuse-worker:
+    image: langfuse/langfuse-worker:2
+    container_name: agentflow-langfuse-worker
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      - DATABASE_URL=postgresql://agentflow:agentflow_dev_password@postgres:5432/langfuse
+      - SALT=langfuse_salt_dev_only_change_in_prod
+      - TELEMETRY_ENABLED=false
+
+  # ─────────────────────────────────────────────
+  # MailHog（本地邮件测试服务）
+  # 用途：拦截系统发出的所有邮件（告警通知、报告），在 Web UI 查看
+  # 生产注意：生产环境替换为真实 SMTP（如阿里云邮件推送）
+  # ─────────────────────────────────────────────
+  mailhog:
+    image: mailhog/mailhog:v1.0.1
+    container_name: agentflow-mailhog
+    restart: unless-stopped
+    ports:
+      - '1025:1025'  # SMTP（应用连接此端口发邮件）
+      - '8025:8025'  # Web UI（浏览器查看收到的邮件）
+
+volumes:
+  postgres_data:
+    driver: local
+  redis_data:
+    driver: local

@@ -1,0 +1,26 @@
+{
+  "name": "@agentflow/hello-agent",
+  "version": "0.1.0",
+  "description": "AgentFlow 环境验证 Demo：连接 PostgreSQL、Redis、调用 Anthropic API",
+  "type": "module",
+  "main": "dist/index.js",
+  "engines": {
+    "node": ">=20.11.0 <21"
+  },
+  "scripts": {
+    "build": "tsc",
+    "start": "node dist/index.js",
+    "dev": "tsx src/index.ts"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.39.0",
+    "ioredis": "^5.4.0",
+    "pg": "^8.13.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "@types/pg": "^8.11.0",
+    "tsx": "^4.19.0",
+    "typescript": "^5.7.0"
+  }
+}

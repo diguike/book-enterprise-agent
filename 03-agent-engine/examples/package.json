@@ -1,0 +1,27 @@
+{
+  "name": "ch03-agent-engine-examples",
+  "version": "1.0.0",
+  "description": "第3章：核心 Agent 引擎 示例代码",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "tsc",
+    "start": "node dist/index.js",
+    "dev": "tsx src/index.ts"
+  },
+  "dependencies": {
+    "@ai-sdk/anthropic": "^1.2.0",
+    "@anthropic-ai/sdk": "^0.39.0",
+    "@langchain/langgraph": "^0.2.0",
+    "@langchain/langgraph-checkpoint-postgres": "^1.0.1",
+    "ai": "^4.3.0",
+    "fastify": "^5.2.0",
+    "mastra": "^0.10.0",
+    "zod": "^3.24.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "tsx": "^4.19.0",
+    "typescript": "^5.7.0"
+  }
+}

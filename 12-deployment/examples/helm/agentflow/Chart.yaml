@@ -1,0 +1,19 @@
+apiVersion: v2
+name: agentflow
+description: AgentFlow 企业级多租户 AI Agent 平台 Helm Chart
+type: application
+# Chart 自身版本（修改 Chart 时递增）
+version: 0.1.0
+# AgentFlow 应用版本（值由 values.yaml 的 image.tag 覆盖）
+appVersion: '1.0.0'
+keywords:
+  - ai
+  - agent
+  - llm
+  - multi-tenant
+maintainers:
+  - name: AgentFlow Team
+    email: ops@example.com
+# 依赖的子 Chart（可选）：直接复用社区 Chart 起 Postgres / Redis 等
+# 生产环境建议用云托管，而不是 Helm 起这些有状态服务
+dependencies: []

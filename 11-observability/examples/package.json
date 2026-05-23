@@ -1,0 +1,35 @@
+{
+  "name": "ch11-observability-examples",
+  "version": "1.0.0",
+  "description": "第11章可观测性与评估示例代码",
+  "type": "module",
+  "main": "src/index.ts",
+  "scripts": {
+    "start": "tsx --import ./src/otel-init.ts src/index.ts",
+    "dev": "tsx watch --import ./src/otel-init.ts src/index.ts",
+    "demo:tracer": "tsx --import ./src/otel-init.ts src/agent-tracer.ts",
+    "demo:propagation": "tsx --import ./src/otel-init.ts src/trace-propagation.ts",
+    "demo:langfuse": "tsx src/langfuse-wrapper.ts",
+    "demo:eval": "tsx src/evaluator.ts",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@opentelemetry/api": "^1.9.0",
+    "@opentelemetry/auto-instrumentations-node": "^0.55.0",
+    "@opentelemetry/exporter-trace-otlp-http": "^0.55.0",
+    "@opentelemetry/resources": "^1.28.0",
+    "@opentelemetry/sdk-node": "^0.55.0",
+    "@opentelemetry/sdk-trace-base": "^1.28.0",
+    "@opentelemetry/semantic-conventions": "^1.28.0",
+    "bullmq": "^5.34.0",
+    "fastify": "^5.2.0",
+    "ioredis": "^5.4.0",
+    "langfuse": "^3.30.0",
+    "zod": "^3.23.8"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "tsx": "^4.19.0",
+    "typescript": "^5.7.0"
+  }
+}

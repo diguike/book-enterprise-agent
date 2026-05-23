@@ -1,0 +1,33 @@
+{
+  "name": "ch06-knowledge-base-examples",
+  "version": "1.0.0",
+  "description": "第6章知识库系统（RAG）示例代码",
+  "type": "module",
+  "scripts": {
+    "demo": "tsx src/index.ts",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.39.0",
+    "bullmq": "^5.34.0",
+    "drizzle-orm": "^0.40.0",
+    "ioredis": "^5.4.0",
+    "pdf-parse": "^1.1.1",
+    "pg": "^8.13.0",
+    "pgvector": "^0.2.0",
+    "zod": "^3.24.0"
+  },
+  "optionalDependencies": {
+    "llamaindex": "^0.8.0",
+    "mammoth": "^1.8.0",
+    "voyageai": "^0.0.5",
+    "openai": "^4.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "@types/pdf-parse": "^1.1.4",
+    "@types/pg": "^8.11.0",
+    "tsx": "^4.19.0",
+    "typescript": "^5.7.0"
+  }
+}

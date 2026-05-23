@@ -1,0 +1,62 @@
+# AgentFlow MVP 本地开发环境（精简版）
+# 只包含 MVP 必需的 Postgres 和 Redis；
+# 完整版（含 Temporal、Langfuse 等）见 ../02-local-dev/examples/docker-compose.yml
+#
+# 启动：docker compose up -d
+# 停止：docker compose down
+# 清空数据：docker compose down -v
+
+services:
+  # ─────────────────────────────────────────────
+  # PostgreSQL 14 + pgvector
+  # 用途：租户、会话、审计日志持久化（向量列保留给后续章节用）
+  # ─────────────────────────────────────────────
+  postgres:
+    image: pgvector/pgvector:pg14
+    container_name: agentflow-mvp-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: agentflow
+      POSTGRES_PASSWORD: agentflow_dev_password
+      POSTGRES_DB: agentflow
+    ports:
+      - '5432:5432'
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./scripts/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U agentflow -d agentflow']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ─────────────────────────────────────────────
+  # Redis 7（单节点，AOF 持久化）
+  # 用途：Session 热状态、Prompt cache 元数据
+  # 生产注意：生产环境使用 Redis Cluster（3 主 3 从），key 用 hash tag 保证落同槽
+  # ─────────────────────────────────────────────
+  redis:
+    image: redis:7-alpine
+    container_name: agentflow-mvp-redis
+    restart: unless-stopped
+    command: >
+      redis-server
+      --appendonly yes
+      --appendfsync everysec
+      --maxmemory 256mb
+      --maxmemory-policy allkeys-lru
+    ports:
+      - '6379:6379'
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ['CMD', 'redis-cli', 'ping']
+      interval: 10s
+      timeout: 3s
+      retries: 5
+
+volumes:
+  postgres_data:
+    driver: local
+  redis_data:
+    driver: local

@@ -1,0 +1,33 @@
+{
+  "name": "agentflow",
+  "version": "0.1.0",
+  "private": true,
+  "description": "AgentFlow 企业级 AI Agent SaaS 平台 — 书籍配套完整可运行 MVP",
+  "workspaces": [
+    "packages/*",
+    "apps/*"
+  ],
+  "scripts": {
+    "build": "turbo build",
+    "dev": "turbo dev",
+    "test": "turbo test",
+    "lint": "turbo lint",
+    "type-check": "turbo type-check",
+    "clean": "turbo clean && rm -rf node_modules",
+    "db:init": "node scripts/db-init.mjs",
+    "db:migrate": "turbo db:migrate"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "eslint": "^9.0.0",
+    "pg": "^8.13.0",
+    "prettier": "^3.4.0",
+    "turbo": "^2.3.0",
+    "typescript": "^5.7.0"
+  },
+  "engines": {
+    "node": ">=20.0.0",
+    "npm": ">=10.0.0"
+  },
+  "packageManager": "npm@10.0.0"
+}

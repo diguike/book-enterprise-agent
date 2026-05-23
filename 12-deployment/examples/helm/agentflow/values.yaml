@@ -1,0 +1,147 @@
+# AgentFlow 默认 values
+# 部署不同环境时通过 -f values-prod.yaml 覆盖
+
+# 全局配置
+global:
+  namespace: agentflow
+  imageRegistry: docker.io
+  imagePullSecrets:
+    - regcred
+
+# 镜像
+image:
+  repository: agentflow
+  # 三个 app 共用一个 tag，便于版本对齐
+  tag: v1.0.0
+  pullPolicy: IfNotPresent
+
+# API 服务（无状态，承接 HTTP / SSE）
+api:
+  enabled: true
+  replicas: 3
+  image:
+    name: api
+  resources:
+    requests:
+      cpu: 500m
+      memory: 1Gi
+    limits:
+      cpu: 2000m
+      memory: 4Gi
+  service:
+    type: ClusterIP
+    port: 80
+  autoscaling:
+    enabled: true
+    minReplicas: 3
+    maxReplicas: 20
+    targetCPUUtilizationPercentage: 70
+    # 自定义指标：BullMQ 队列深度
+    customMetrics:
+      - name: bullmq_queue_depth
+        queue: agent-tasks
+        averageValue: 100
+  # 优雅关闭
+  terminationGracePeriodSeconds: 180
+  preStopSleepSeconds: 15
+
+# Temporal Worker（无 HTTP，由 task queue 驱动）
+worker:
+  enabled: true
+  replicas: 5
+  image:
+    name: worker
+  resources:
+    requests:
+      cpu: 500m
+      memory: 1Gi
+    limits:
+      cpu: 2000m
+      memory: 4Gi
+  # 单进程内并发 Activity 数
+  concurrency: 20
+  taskQueue: agentflow-default
+  autoscaling:
+    enabled: true
+    minReplicas: 3
+    maxReplicas: 30
+    backlogThreshold: 50
+  terminationGracePeriodSeconds: 300
+
+# Skill 沙箱（强隔离）
+sandbox:
+  enabled: true
+  replicas: 5
+  # 蓝绿发布：通过 version 标签切换
+  version: v1
+  image:
+    name: sandbox
+  resources:
+    requests:
+      cpu: 250m
+      memory: 256Mi
+    limits:
+      cpu: 1000m
+      memory: 512Mi
+  isolate:
+    memoryMb: 128
+    timeoutMs: 5000
+  # 严格安全策略
+  securityContext:
+    readOnlyRootFilesystem: true
+    allowPrivilegeEscalation: false
+  # 限制出网，防止恶意 Skill 外联
+  networkPolicy:
+    enabled: true
+
+# Ingress + TLS
+ingress:
+  enabled: true
+  className: nginx
+  host: api.agentflow.example.com
+  tls:
+    enabled: true
+    issuer: letsencrypt-prod
+  annotations:
+    # SSE 关键配置
+    nginx.ingress.kubernetes.io/proxy-buffering: 'off'
+    nginx.ingress.kubernetes.io/proxy-read-timeout: '300'
+
+# 依赖服务连接（生产环境用云托管，这里只放连接信息）
+database:
+  # 通过 PgBouncer 连接
+  host: pgbouncer.agentflow.svc.cluster.local
+  port: 6432
+  database: agentflow
+  # 用户名密码从 Secret 注入
+  existingSecret: agentflow-secrets
+
+redis:
+  # Redis Cluster 入口（任一节点都行，driver 会发现拓扑）
+  host: redis-cluster-0.redis-cluster.agentflow.svc.cluster.local
+  port: 6379
+  cluster: true
+
+temporal:
+  server: temporal-frontend.temporal.svc.cluster.local:7233
+  namespace: agentflow
+
+# 观测
+observability:
+  otelEndpoint: http://otel-collector.observability.svc.cluster.local:4318
+  tracesSampleRate: 0.1
+  prometheusScrape: true
+
+# LLM 配置
+llm:
+  defaultModel: claude-sonnet-4-5
+  fallbackModel: claude-haiku-4-5
+  promptCacheEnabled: true
+  tenantDailyBudgetUsd: 500
+
+# RAG 配置
+rag:
+  vectorStore: pgvector # 切到 Qdrant 时改成 qdrant 或 dual_write
+  embeddingProvider: openai
+  topK: 5
+  similarityThreshold: 0.7

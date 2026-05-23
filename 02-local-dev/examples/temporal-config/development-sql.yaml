@@ -1,0 +1,6 @@
+# Temporal 开发环境动态配置
+# 调整 workflow 执行限制，适合本地调试
+
+system.forceSearchAttributesCacheRefreshOnRead:
+  - value: true
+    constraints: {}

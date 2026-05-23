@@ -1,0 +1,27 @@
+{
+  "name": "ch07-session-state-examples",
+  "version": "1.0.0",
+  "description": "第7章会话与状态管理示例代码",
+  "type": "module",
+  "scripts": {
+    "demo": "tsx src/index.ts",
+    "worker": "tsx src/worker.ts",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@temporalio/activity": "^1.11.0",
+    "@temporalio/client": "^1.11.0",
+    "@temporalio/worker": "^1.11.0",
+    "@temporalio/workflow": "^1.11.0",
+    "drizzle-orm": "^0.40.0",
+    "ioredis": "^5.4.0",
+    "pg": "^8.13.0",
+    "zod": "^3.24.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "@types/pg": "^8.11.0",
+    "tsx": "^4.19.0",
+    "typescript": "^5.7.0"
+  }
+}

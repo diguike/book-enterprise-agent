@@ -1,0 +1,27 @@
+{
+  "name": "ch10-high-concurrency-examples",
+  "version": "1.0.0",
+  "description": "第10章高并发与稳定性示例代码",
+  "main": "src/index.ts",
+  "scripts": {
+    "start": "tsx src/index.ts",
+    "dev": "tsx watch src/index.ts",
+    "demo:token-bucket": "tsx src/token-bucket.ts",
+    "demo:leaky-bucket": "tsx src/leaky-bucket.ts",
+    "demo:circuit-breaker": "tsx src/circuit-breaker.ts",
+    "demo:bullmq": "tsx src/bullmq-setup.ts",
+    "demo:dlq": "tsx src/dlq.ts",
+    "loadtest": "k6 run k6/load-test.js",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "bullmq": "^5.34.0",
+    "fastify": "^5.2.0",
+    "ioredis": "^5.4.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "tsx": "^4.19.0",
+    "typescript": "^5.7.0"
+  }
+}

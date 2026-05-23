@@ -1,0 +1,31 @@
+{
+  "name": "@agentflow/llm-gateway",
+  "version": "0.1.0",
+  "private": true,
+  "description": "AgentFlow LLM Gateway（MVP 版）：Anthropic 调用 + Prompt Caching + 重试",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsc",
+    "type-check": "tsc --noEmit",
+    "clean": "rm -rf dist"
+  },
+  "dependencies": {
+    "@agentflow/shared": "0.1.0",
+    "@anthropic-ai/sdk": "^0.39.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "typescript": "^5.7.0"
+  }
+}
