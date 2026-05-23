@@ -4,6 +4,10 @@ feishu_url: "https://www.feishu.cn/wiki/HRjYwbh3Ti4tXrkdv9CcCPNcnEb"
 last_synced: "2026-05-11T17:28:37.985Z"
 ---
 
+> **配套资源**  
+> 源码仓库 · [github.com/diguike/book-enterprise-agent](https://github.com/diguike/book-enterprise-agent)  
+> 在线阅读 · [inferloop.dev/enterprise-agent](https://inferloop.dev/enterprise-agent)
+
 ## 这个时间窗口
 
 2023 年初，GPT-4 API 开放的第一周，国内某头部电商平台的一支工程团队用 3 天搭出了一个智能客服原型——接入 LangChain，写了几十条规则，演示跑通了。产品经理当场说"可以上线"。
