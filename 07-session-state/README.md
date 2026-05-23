@@ -721,3 +721,9 @@ Temporal 带来了复杂度，但它换来的是"长任务不会因为基础设�
 - Temporal 确定性约束说明：https://docs.temporal.io/workflows#deterministic-constraints
 - Redis Cluster hash tag 规范：https://redis.io/docs/reference/cluster-spec/#hash-tags
 - Anthropic Token Counting API：https://docs.anthropic.com/en/api/messages-count-tokens
+
+---
+
+> 本章来自《百万级 AI Agent 平台架构》开源版 · 作者「递归客」  
+> 在线阅读完整书系：[inferloop.dev](https://inferloop.dev)  
+> 源码仓库：[github.com/diguike/book-enterprise-agent](https://github.com/diguike/book-enterprise-agent)

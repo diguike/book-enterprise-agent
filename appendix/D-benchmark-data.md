@@ -262,3 +262,9 @@ cache 命中率每提高 10%，省的钱大概是 6-8% 的 LLM 账单。优化�
 4. 升级到谁。
 
 线上跑久了你会发现，能持续生效的告警通常只有 10-15 条。剩下的不是失效就是噪声，定期 review 砍掉。
+
+---
+
+> 本附录来自《百万级 AI Agent 平台架构》开源版 · 作者「递归客」  
+> 在线阅读完整书系：[inferloop.dev](https://inferloop.dev)  
+> 源码仓库：[github.com/diguike/book-enterprise-agent](https://github.com/diguike/book-enterprise-agent)

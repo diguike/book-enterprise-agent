@@ -854,3 +854,9 @@ ${context}`
 - [LlamaIndex.TS 文档](https://ts.llamaindex.ai/)
 - [mammoth.js DOCX 转换库](https://github.com/mwilliamson/mammoth.js)
 - [pdf-parse npm 包](https://www.npmjs.com/package/pdf-parse)
+
+---
+
+> 本章来自《百万级 AI Agent 平台架构》开源版 · 作者「递归客」  
+> 在线阅读完整书系：[inferloop.dev](https://inferloop.dev)  
+> 源码仓库：[github.com/diguike/book-enterprise-agent](https://github.com/diguike/book-enterprise-agent)

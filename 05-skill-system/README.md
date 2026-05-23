@@ -839,3 +839,9 @@ Skill 的四种形态对三个租户不是均匀分布的，每类租户主要�
 - MCP 规范：https://modelcontextprotocol.io/specification
 - pgvector HNSW 索引文档：https://github.com/pgvector/pgvector#hnsw
 - CVE-2023-29017（vm2 沙箱逃逸）：https://github.com/patriksimek/vm2/issues/533
+
+---
+
+> 本章来自《百万级 AI Agent 平台架构》开源版 · 作者「递归客」  
+> 在线阅读完整书系：[inferloop.dev](https://inferloop.dev)  
+> 源码仓库：[github.com/diguike/book-enterprise-agent](https://github.com/diguike/book-enterprise-agent)

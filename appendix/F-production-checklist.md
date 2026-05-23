@@ -332,3 +332,9 @@ Day 1 最重要的不是"没出故障"，是"出了故障能在 SLA 内处理"�
 这份 checklist 是动态的——AgentFlow 每出一类新问题、每接入一项新能力、每经过一次架构升级，都会有新的项目加进来。建议团队把这份 checklist 维护在内部 wiki 上，每次上线后回顾"哪些项目漏了、哪些项目其实没必要"，把它打磨成自己团队的版本。
 
 上线只是开始，不是终点。让每一次上线都比上一次更稳，是 AgentFlow 这种长期演进系统的核心运维哲学。
+
+---
+
+> 本附录来自《百万级 AI Agent 平台架构》开源版 · 作者「递归客」  
+> 在线阅读完整书系：[inferloop.dev](https://inferloop.dev)  
+> 源码仓库：[github.com/diguike/book-enterprise-agent](https://github.com/diguike/book-enterprise-agent)

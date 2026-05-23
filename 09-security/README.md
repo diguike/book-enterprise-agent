@@ -447,3 +447,9 @@ interface SecurityEvent {
 - NIST SP 800-53 — 安全控制框架（审计与告警章节）
 - GDPR Article 32 — Security of Processing
 - 中国《个人信息保护法》第 51 条 — 个人信息处理者的安全义务
+
+---
+
+> 本章来自《百万级 AI Agent 平台架构》开源版 · 作者「递归客」  
+> 在线阅读完整书系：[inferloop.dev](https://inferloop.dev)  
+> 源码仓库：[github.com/diguike/book-enterprise-agent](https://github.com/diguike/book-enterprise-agent)

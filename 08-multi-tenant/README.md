@@ -723,3 +723,9 @@ async function handleAgentRequest(
 - AWS SaaS 多租户隔离白皮书：Silo / Pool / Bridge Models
 - Anthropic API Rate Limits：Tier 体系与超限处理 — <https://docs.anthropic.com/en/api/rate-limits>
 - Stripe Engineering Blog：Scaling your API with rate limiters — <https://stripe.com/blog/rate-limiters>
+
+---
+
+> 本章来自《百万级 AI Agent 平台架构》开源版 · 作者「递归客」  
+> 在线阅读完整书系：[inferloop.dev](https://inferloop.dev)  
+> 源码仓库：[github.com/diguike/book-enterprise-agent](https://github.com/diguike/book-enterprise-agent)

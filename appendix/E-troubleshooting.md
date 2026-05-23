@@ -839,3 +839,9 @@ if (step >= MAX_STEPS) {
 10 类故障看完，会发现一个共通点：每一个修复都不是"修代码"，而是"修系统"。LLM API 限流的解法不是给 retry 加点 sleep，是把多 provider 架构和配额管理建起来；OOM 的解法不是把 memory limit 调大，是把内存泄漏的检测做到 CI 流程里；prompt injection 的解法不是加几个正则，是把分层防御和红蓝对抗当成日常运营。
 
 把"出过的故障"沉淀成"runbook + 监控 + 预防措施"三件套，是从被动救火到主动治理的转变。这本附录的 runbook 不是终点，是起点——线上每出一类新故障，团队都应该往里加一条新的故障编号。
+
+---
+
+> 本附录来自《百万级 AI Agent 平台架构》开源版 · 作者「递归客」  
+> 在线阅读完整书系：[inferloop.dev](https://inferloop.dev)  
+> 源码仓库：[github.com/diguike/book-enterprise-agent](https://github.com/diguike/book-enterprise-agent)

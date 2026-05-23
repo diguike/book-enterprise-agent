@@ -662,3 +662,9 @@ apps/skill-gateway
 1M session 不等于 1M QPS：状态存储才是主要挑战，真实的 LLM 并发连接只有 5K-10K。本地开发的三个隐含假设——进程内状态、无代价重启、顺序执行——在生产环境分别对应三类故障：水平扩容失效、API 费用浪费、事件循环被打死。AgentFlow 的五层架构针对这三个失效点各自给出了解法：外置状态到 Redis/PostgreSQL、用 Temporal 持久化 workflow 执行、全链路异步非阻塞。技术选型的决策逻辑是：先明确问题，再选工具，同时说清楚约束——后面各章的选型讨论都沿用这个框架。
 
 下一章开始搭建本地开发环境，把这个 monorepo 结构跑起来，并配置好开发阶段所需的所有基础设施（Redis、PostgreSQL、Temporal server）。
+
+---
+
+> 本章来自《百万级 AI Agent 平台架构》开源版 · 作者「递归客」  
+> 在线阅读完整书系：[inferloop.dev](https://inferloop.dev)  
+> 源码仓库：[github.com/diguike/book-enterprise-agent](https://github.com/diguike/book-enterprise-agent)

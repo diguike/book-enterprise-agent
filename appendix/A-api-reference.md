@@ -864,3 +864,9 @@ for await (const event of stream) {
 ```
 
 更多端到端示例参见 `agentflow/examples/` 目录。
+
+---
+
+> 本附录来自《百万级 AI Agent 平台架构》开源版 · 作者「递归客」  
+> 在线阅读完整书系：[inferloop.dev](https://inferloop.dev)  
+> 源码仓库：[github.com/diguike/book-enterprise-agent](https://github.com/diguike/book-enterprise-agent)

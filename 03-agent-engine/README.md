@@ -1146,3 +1146,9 @@ Mastra 和 LangGraph.js 的边界，在这三个租户身上对应的就是不�
 - [LangGraph.js 文档](https://langchain-ai.github.io/langgraphjs/)
 - [Vercel AI SDK - streamText](https://sdk.vercel.ai/docs/reference/ai-sdk-core/stream-text)
 - [Vercel AI SDK - onStepFinish](https://sdk.vercel.ai/docs/reference/ai-sdk-core/stream-text#on-step-finish)
+
+---
+
+> 本章来自《百万级 AI Agent 平台架构》开源版 · 作者「递归客」  
+> 在线阅读完整书系：[inferloop.dev](https://inferloop.dev)  
+> 源码仓库：[github.com/diguike/book-enterprise-agent](https://github.com/diguike/book-enterprise-agent)

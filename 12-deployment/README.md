@@ -886,3 +886,9 @@ Grafana 看板按租户、按模型、按日切片。告警规则：单租户单
 - Redis 官方文档：[Redis Cluster Specification - Keys hash tags](https://redis.io/docs/reference/cluster-spec/#hash-tags)
 - Anthropic 官方文档：[Prompt caching](https://docs.anthropic.com/en/docs/build-with-claude/prompt-caching)
 - Qdrant 官方文档：[Migration from pgvector](https://qdrant.tech/documentation/tutorials/)
+
+---
+
+> 本章来自《百万级 AI Agent 平台架构》开源版 · 作者「递归客」  
+> 在线阅读完整书系：[inferloop.dev](https://inferloop.dev)  
+> 源码仓库：[github.com/diguike/book-enterprise-agent](https://github.com/diguike/book-enterprise-agent)

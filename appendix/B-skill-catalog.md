@@ -810,3 +810,9 @@ DeepL + Google Translate 双源，按租户区域路由。
 第三，**通信类 skill 谨慎放权**。`send-email`、`send-sms`、`post-slack` 一旦被 prompt injection 滥用，后果是 agent 替租户给客户群发邮件。除了默认禁用，建议在租户控制台增加二次确认开关。
 
 第四，**知识库类 skill 一定要求引用**。`search-knowledge` 和 `summarize-knowledge` 返回的内容会被 agent 当作事实复述给用户。如果不强制 agent 附上引用，租户在合规审计时会很被动。在 system prompt 里写一句「使用知识库内容时必须在句末加引用链接」是廉价但有效的做法。
+
+---
+
+> 本附录来自《百万级 AI Agent 平台架构》开源版 · 作者「递归客」  
+> 在线阅读完整书系：[inferloop.dev](https://inferloop.dev)  
+> 源码仓库：[github.com/diguike/book-enterprise-agent](https://github.com/diguike/book-enterprise-agent)

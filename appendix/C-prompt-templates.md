@@ -495,3 +495,9 @@ Assistant: 你好，我帮你查一下订单状态...
 ```
 
 这种混合写法在 AgentFlow 线上跑了一年多，是当前最稳的方案。纯中文 prompt 在复杂规则场景下偶发"忘记某条规则"，纯英文 prompt 又会让模型偶尔用英文回中文用户。混合写法兼顾稳定性和用户体验。
+
+---
+
+> 本附录来自《百万级 AI Agent 平台架构》开源版 · 作者「递归客」  
+> 在线阅读完整书系：[inferloop.dev](https://inferloop.dev)  
+> 源码仓库：[github.com/diguike/book-enterprise-agent](https://github.com/diguike/book-enterprise-agent)

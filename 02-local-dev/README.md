@@ -505,3 +505,9 @@ Hello Agent 验证了从 API 调用到数据库持久化的完整链路。第3�
 - [Langfuse 自托管指南](https://langfuse.com/docs/deployment/self-host)：生产部署注意事项
 - [ioredis Cluster 模式文档](https://github.com/redis/ioredis#cluster)：hash tag 语法和 slot 路由
 - [Turborepo 任务缓存](https://turbo.build/repo/docs/crafting-your-repository/caching)：`inputs` 和 `outputs` 配置
+
+---
+
+> 本章来自《百万级 AI Agent 平台架构》开源版 · 作者「递归客」  
+> 在线阅读完整书系：[inferloop.dev](https://inferloop.dev)  
+> 源码仓库：[github.com/diguike/book-enterprise-agent](https://github.com/diguike/book-enterprise-agent)

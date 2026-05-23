@@ -777,3 +777,9 @@ LLM Gateway 是平台成本和稳定性的核心控制点。本章实现的四�
 - [Anthropic API 定价](https://www.anthropic.com/pricing)
 - [Redis Stack 向量搜索文档](https://redis.io/docs/stack/search/reference/vectors/)
 - [Redis Lua 脚本原子性说明](https://redis.io/docs/manual/programmability/eval-intro/)
+
+---
+
+> 本章来自《百万级 AI Agent 平台架构》开源版 · 作者「递归客」  
+> 在线阅读完整书系：[inferloop.dev](https://inferloop.dev)  
+> 源码仓库：[github.com/diguike/book-enterprise-agent](https://github.com/diguike/book-enterprise-agent)

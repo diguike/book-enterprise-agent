@@ -714,3 +714,9 @@ CI 里跑 500 条评估，每条 1-2 次 LLM 调用，整体成本几美金、�
 - W3C Trace Context 规范：https://www.w3.org/TR/trace-context/
 - BullMQ 与 OTel 集成讨论：https://github.com/taskforcesh/bullmq/discussions
 - LLM as Judge 论文（MT-Bench）：https://arxiv.org/abs/2306.05685
+
+---
+
+> 本章来自《百万级 AI Agent 平台架构》开源版 · 作者「递归客」  
+> 在线阅读完整书系：[inferloop.dev](https://inferloop.dev)  
+> 源码仓库：[github.com/diguike/book-enterprise-agent](https://github.com/diguike/book-enterprise-agent)

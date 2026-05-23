@@ -804,3 +804,9 @@ AgentFlow 上线前的一次压测，baseline 跑出来 p95 是 220ms 一切看�
 - Netflix Hystrix 设计文档（已 archive 但仍是最经典的断路器设计参考）：<https://github.com/Netflix/Hystrix/wiki>
 - k6 官方文档：<https://grafana.com/docs/k6/>
 - Stripe Engineering，《Scaling your API with rate limiters》：<https://stripe.com/blog/rate-limiters>
+
+---
+
+> 本章来自《百万级 AI Agent 平台架构》开源版 · 作者「递归客」  
+> 在线阅读完整书系：[inferloop.dev](https://inferloop.dev)  
+> 源码仓库：[github.com/diguike/book-enterprise-agent](https://github.com/diguike/book-enterprise-agent)

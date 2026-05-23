@@ -94,3 +94,9 @@ AI agent 生态变化极快，书中提到的库版本和 API 可能已经迭代
 ---
 
 本书第一章从一个具体的架构问题开始：1M 并发 session 到底意味着什么，以及大多数 agent 教程里的假设为什么在生产环境会失效。
+
+---
+
+> 本章来自《百万级 AI Agent 平台架构》开源版 · 作者「递归客」  
+> 在线阅读完整书系：[inferloop.dev](https://inferloop.dev)  
+> 源码仓库：[github.com/diguike/book-enterprise-agent](https://github.com/diguike/book-enterprise-agent)
