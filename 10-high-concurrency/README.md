@@ -208,7 +208,7 @@ async function callSkill<T>(fn: () => Promise<T>, timeoutMs: number): Promise<T>
 
 第三条特别重要——单纯靠每层各自的阈值反应太慢，故障可能传染到上游再被挡住。把断路器状态作为"前置反馈信号"，能让系统在故障扩散前一步就开始降级。
 
-实现上，AgentFlow 在 LLM Gateway 断路器跳闸时往 Redis 发布一个 `breaker:open` 消息，入口层订阅后修改对应租户的令牌桶配置：
+一种可行的接法是：LLM Gateway 断路器跳闸时往 Redis 发布一个 `breaker:open` 消息，入口层订阅后调低令牌桶的补充速率：
 
 ```typescript
 redis.subscribe('breaker:events');
@@ -224,6 +224,8 @@ redis.on('message', async (_channel, raw) => {
 ```
 
 这样系统在下游恢复前不会一直把入流打到原来的水平，给下游一个真正的喘息空间。
+
+需要说明：本章示例代码没有实现这条链路。`examples/src/token-bucket.ts` 里 `RedisTokenBucket` 的 `capacity` 和 `refillRate` 是构造时定死的（`private readonly`），要落地这个方案，得先给它加一个动态调速入口（比如 `adjustRate(factor)`，把临时速率写进 Redis、由 Lua 脚本读取），`applyEmergencyThrottle` 才有东西可调。
 
 ## 10.3 BullMQ 在 AgentFlow 中的深度使用
 
@@ -314,7 +316,7 @@ const worker = new Worker('agent-tasks', processor, {
 
 > **生产注意**：`concurrency` 是**单 Worker 进程内的并发数**，不是全局并发。多 Pod 部署时，全局并发 = Pod 数 × concurrency。压测时容易在单机调到 50 觉得性能不错，上生产开 20 个 Pod 直接打挂下游。`limiter` 默认也是单 Worker 范围，跨进程协调要用 `limiter.groupKey` 或额外的 Redis 限流。
 
-### connection 配置的两个坑
+### connection 与 Cluster 的三个坑
 
 ```typescript
 const connection = {
@@ -327,6 +329,8 @@ const connection = {
 `maxRetriesPerRequest` 默认值是 20，BullMQ 用的 blocking 命令（`BRPOPLPUSH` 等）执行时间很长，达到 20 次重试就报错。BullMQ 5.x 启动时会校验这个配置，没设直接抛错。
 
 第二个坑是 BullMQ 内部会创建多个 Redis 连接（队列、worker、events 各一个），调试时看到 Redis `CLIENT LIST` 显示 20+ 个连接很正常，不要以为有连接泄漏。
+
+第三个坑只在 Redis Cluster 下暴露：BullMQ 一个队列内部有十几个 key（`wait`、`active`、`completed`、`delayed` 等），Lua 脚本要跨这些 key 原子操作，Cluster 要求它们全部落在同一个 hash slot，否则运行时报 `CROSSSLOT`。官方要求的做法是构造 Queue/Worker/QueueEvents 时统一配 `prefix: '{queueName}'`——花括号 hash tag 把同队列的所有 key 锁进同一 slot。这和本章令牌桶、断路器 Lua 脚本用 `{tenantId}` hash tag 是同一类问题，区别是 BullMQ 的 key 由库内部生成，只能通过 `prefix` 把 tag 传进去。`examples/src` 里所有 Queue/Worker/QueueEvents 统一用 `prefix: '{agent-tasks}'`，DLQ 队列也用同一个 tag——重放时要在一个事务里同时操作主队列和 DLQ 的 key，两者必须同 slot。单机 Redis 不校验 slot，这个配置漏了要到上 Cluster 才炸，按第 2 章的单机模拟规则，单机也要按 Cluster 的 key 设计写。
 
 ### 重试策略：指数退避与抖动
 
@@ -573,8 +577,9 @@ export function attachDeadLetterHandler(
     // 双写：DLQ 队列（重放用）+ Postgres（审计用）
     await dlqQueue.add('dead-letter', record, {
       attempts: 1,
-      removeOnComplete: false,
-      removeOnFail: false,
+      // 保留策略：完成的只留最近 100 条，失败的留 30 天，防止 DLQ 自身无限增长
+      removeOnComplete: 100,
+      removeOnFail: { age: 30 * 24 * 3600 },
     });
     await store.save(record);
   });

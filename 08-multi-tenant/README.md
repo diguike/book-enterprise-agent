@@ -544,27 +544,29 @@ AgentFlow 通过请求头 `X-Request-Priority: realtime | batch` 区分，实时
 
 **单次请求防护**：单次请求估算 token 超过 10 万直接拒绝（`SINGLE_REQUEST_TOKEN_LIMIT = 100_000`），不进入队列也不走 LLM。这个阈值的依据是 AgentFlow 线上对话的 P99.9 上下文长度约 3 万 token，10 万是 3x 的安全边界，正常的客服或分析对话不会超出。超出基本是两种情况：知识库召回逻辑 bug 把一整本手册塞进 context；或者恶意输入触发的 prompt injection。两种都应该尽早拒绝。
 
-**7 日均值告警**：记录每个租户的 7 日平均 Token 消耗。如果某小时的消耗超过 7 日均值的 3 倍，触发告警——可能是租户在跑批量任务，也可能是 API key 泄漏被滥用。
+**7 日基线告警**：记录每个租户 1 分钟粒度的用量直方图，保留 7 天。如果最近 15 分钟的消耗超过 7 日基线（按同样 15 分钟窗口折算的平均值）的 3 倍，触发告警——可能是租户在跑批量任务，也可能是 API key 泄漏被滥用。窗口取 15 分钟而不是 1 小时，是因为泄漏的 key 往往几分钟内就把用量打上去，等满 1 小时再比对，损失已经扩大了 4 倍。
 
 ```typescript
 async function detectUsageAnomaly(
   tenantId: string,
-  currentHourTokens: number
+  recentWindowTokens: number   // 最近 15 分钟的 Token 消耗
 ): Promise<void> {
-  // 读取过去 7 天的每小时平均值
-  const avg7dKey = `usage:avg7d:{${tenantId}}`;
-  const avg = await redis.get(avg7dKey).then(v => parseFloat(v ?? '0'));
+  // 读取按 15 分钟窗口折算的 7 日基线
+  const baselineKey = `usage:baseline15m:{${tenantId}}`;
+  const baseline = await redis.get(baselineKey).then(v => parseFloat(v ?? '0'));
 
-  if (avg > 0 && currentHourTokens > avg * 3) {
+  if (baseline > 0 && recentWindowTokens > baseline * 3) {
     await alertingService.send({
       level: 'warning',
       tenantId,
-      message: `异常用量检测：当前小时消耗 ${currentHourTokens} Token，` +
-               `7日均值 ${avg.toFixed(0)}，超出 3 倍阈值`,
+      message: `异常用量检测：最近 15 分钟消耗 ${recentWindowTokens} Token，` +
+               `7 日基线 ${baseline.toFixed(0)}，超出 3 倍阈值`,
     });
   }
 }
 ```
+
+完整实现见 `examples/src/quota-manager.ts` 的 `detectAnomaly()`——它直接从 1 分钟粒度的 Redis hash 直方图累出最近 15 分钟用量和 7 日基线，不需要单独维护预聚合 key。
 
 **自动熔断**：如果告警触发后 30 分钟内消耗继续攀升，自动将租户降级到最低速率限制，并发送邮件要求人工确认。自动熔断是最后手段，触发条件要保守，错误熔断的代价比流量洪峰更大。
 
@@ -615,6 +617,8 @@ sequenceDiagram
 9. **审计日志**：`require_audit_log=true` 的租户（如金融机构）会把完整的 LLM 输入输出写入 `audit_events` 表。这张表同样开启 RLS，但审计查询通常由合规系统用单独的数据库连接发起，要在该连接上同样设置 `app.current_tenant_id`，避免出现"合规系统能跨租户查"的隐患
 
 每一环都有自己的失效模式。多租户系统的隔离不能依赖单一防线，而是要求任何一环出 bug 时其他环仍然有效——这是工程上"纵深防御"的具体落地方式。
+
+隔离是否真的生效，不要靠读代码判断。`examples/src/rls-setup.sql` 末尾附了部署后的手工验证 SQL；`examples/src/rls-demo.ts` 把同样的验证做成了可运行 demo——用最小实现的 `withTenantContext()` 以两个租户身份各写一行数据，再互相查询、互相冒写，证明 USING 和 WITH CHECK 都真的挡住了。运行方式是 `npm run demo:rls`，需要本地 Postgres，初始化步骤见该文件头部注释。
 
 ## 8.7 完整实现：把所有模块接起来
 

@@ -21,6 +21,21 @@ const connection = {
   maxRetriesPerRequest: null,
 };
 
+/**
+ * 统一的队列 key 前缀（带 hash tag）。
+ *
+ * BullMQ 一个队列内部有十几个 key（wait/active/completed/delayed 等），Lua 脚本要
+ * 跨这些 key 原子操作。Redis Cluster 要求脚本涉及的 key 全部落在同一个 hash slot，
+ * 否则报 CROSSSLOT——所以官方要求 Queue/Worker/QueueEvents 构造时配
+ * prefix: '{queueName}' 形式的 hash tag。
+ *
+ * 这里所有队列（含 skill 子队列和 DLQ）共用同一个 tag：FlowProducer 的
+ * parent-child 要跨 agent-tasks / skill-tasks 两个队列原子写入，DLQ 重放要同时
+ * 操作主队列和 DLQ 的 key，都必须同 slot。单机 Redis 不校验 slot，但按第 2 章的
+ * 单机模拟规则，key 设计必须按 Cluster 写。
+ */
+export const QUEUE_PREFIX = '{agent-tasks}';
+
 /** 业务约定的优先级档位，数字越小越优先 */
 export const PRIORITY = {
   REALTIME: 1, // 实时客服对话
@@ -46,14 +61,14 @@ export interface SkillJobData {
  * 构造 Agent 主队列：限速 + 优先级
  */
 export function createAgentQueue(): Queue<AgentJobData> {
-  return new Queue<AgentJobData>('agent-tasks', { connection });
+  return new Queue<AgentJobData>('agent-tasks', { connection, prefix: QUEUE_PREFIX });
 }
 
 /**
  * 构造 Skill 子队列
  */
 export function createSkillQueue(): Queue<SkillJobData> {
-  return new Queue<SkillJobData>('skill-tasks', { connection });
+  return new Queue<SkillJobData>('skill-tasks', { connection, prefix: QUEUE_PREFIX });
 }
 
 /**
@@ -67,6 +82,7 @@ export function createAgentWorker(
 ): Worker<AgentJobData> {
   return new Worker<AgentJobData>('agent-tasks', processor, {
     connection,
+    prefix: QUEUE_PREFIX,
     concurrency: 50,
     // limiter 作用于整个 Worker，跨 Pod 共享同名 group 时通过 Redis 协调
     limiter: {
@@ -121,7 +137,8 @@ async function demoDelay(queue: Queue<AgentJobData>): Promise<void> {
  */
 async function demoFlow(): Promise<void> {
   console.log('--- 演示 3：Parent-Child 任务 ---');
-  const flow = new FlowProducer({ connection });
+  // FlowProducer 也要带同一个 prefix：parent-child 跨两个队列原子写入，key 必须同 slot
+  const flow = new FlowProducer({ connection, prefix: QUEUE_PREFIX });
 
   await flow.add({
     name: 'aggregate',
@@ -153,7 +170,7 @@ async function demo(): Promise<void> {
   await queue.obliterate({ force: true });
   await skillQueue.obliterate({ force: true });
 
-  const agentEvents = new QueueEvents('agent-tasks', { connection });
+  const agentEvents = new QueueEvents('agent-tasks', { connection, prefix: QUEUE_PREFIX });
 
   // 启动两个 worker：agent 主队列、skill 子队列
   const agentWorker = createAgentWorker(async (job) => {
@@ -169,7 +186,7 @@ async function demo(): Promise<void> {
       console.log(`[skill] ${job.data.skillName}`);
       return { result: 'mock' };
     },
-    { connection, concurrency: 20 },
+    { connection, prefix: QUEUE_PREFIX, concurrency: 20 },
   );
 
   await demoPriority(queue);

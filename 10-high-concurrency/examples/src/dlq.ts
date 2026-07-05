@@ -15,12 +15,17 @@
  */
 
 import { Queue, Worker, type Job } from 'bullmq';
+import { QUEUE_PREFIX } from './bullmq-setup.js';
 
 const connection = {
   host: process.env.REDIS_HOST ?? '127.0.0.1',
   port: Number(process.env.REDIS_PORT ?? 6379),
   maxRetriesPerRequest: null,
 };
+
+// DLQ 和主队列共用同一个 hash tag prefix：重放时要在一个事务里同时操作
+// 主队列和 DLQ 的 key，Redis Cluster 要求它们落在同一个 slot（详见 10.3 节）
+const prefix = QUEUE_PREFIX;
 
 /** 死信记录的结构，落库时按这个结构建表 */
 export interface DeadLetterRecord {
@@ -99,8 +104,10 @@ export function attachDeadLetterHandler(
     await dlqQueue.add('dead-letter', record, {
       // DLQ 任务不重试，单纯做现场存档
       attempts: 1,
-      removeOnComplete: false,
-      removeOnFail: false,
+      // 保留策略：完成的只留最近 100 条，失败的留 30 天，防止 DLQ 自身无限增长
+      // （长期归档靠下面的 Postgres 落库，Redis 只保留近期现场）
+      removeOnComplete: 100,
+      removeOnFail: { age: 30 * 24 * 3600 },
     });
     await store.save(record);
 
@@ -119,14 +126,14 @@ export function createDlqWorker(onRecord: (r: DeadLetterRecord) => Promise<void>
     async (job) => {
       await onRecord(job.data);
     },
-    { connection, concurrency: 5 },
+    { connection, prefix, concurrency: 5 },
   );
 }
 
 // --- 演示 ---
 async function demo(): Promise<void> {
-  const taskQueue = new Queue('demo-tasks', { connection });
-  const dlqQueue = new Queue('dlq', { connection });
+  const taskQueue = new Queue('demo-tasks', { connection, prefix });
+  const dlqQueue = new Queue('dlq', { connection, prefix });
   const store = new DeadLetterStore();
 
   // 清场
@@ -142,6 +149,7 @@ async function demo(): Promise<void> {
     },
     {
       connection,
+      prefix,
       // 退避策略：每次重试间隔指数增长
       settings: { backoffStrategy: (attempts) => 100 * attempts },
     },

@@ -75,6 +75,9 @@ CREATE TABLE sessions (
 -- 这样查询 plan + tenant_id 时能命中索引，单独查 plan 不会让 RLS 失效但会慢
 CREATE INDEX idx_sessions_tenant_user ON sessions(tenant_id, user_id, created_at DESC);
 
+-- messages 的复合外键引用 (tenant_id, id)，必须先有对应的唯一约束
+ALTER TABLE sessions ADD CONSTRAINT sessions_tenant_id_id_uniq UNIQUE (tenant_id, id);
+
 
 CREATE TABLE messages (
   id          BIGSERIAL PRIMARY KEY,
@@ -87,9 +90,6 @@ CREATE TABLE messages (
   -- 外键带上 tenant_id，防止跨租户引用 session
   FOREIGN KEY (tenant_id, session_id) REFERENCES sessions(tenant_id, id) ON DELETE CASCADE
 );
-
--- 上面的外键需要 sessions 表有 (tenant_id, id) 唯一约束
-ALTER TABLE sessions ADD CONSTRAINT sessions_tenant_id_id_uniq UNIQUE (tenant_id, id);
 
 CREATE INDEX idx_messages_tenant_session ON messages(tenant_id, session_id, created_at);
 

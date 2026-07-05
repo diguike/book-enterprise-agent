@@ -23,7 +23,13 @@ import Redis from 'ioredis';
 import { QueueEvents } from 'bullmq';
 import { RedisTokenBucket } from './token-bucket.js';
 import { RedisCircuitBreaker, CircuitBreakerOpenError } from './circuit-breaker.js';
-import { createAgentQueue, createAgentWorker, PRIORITY, type AgentJobData } from './bullmq-setup.js';
+import {
+  createAgentQueue,
+  createAgentWorker,
+  PRIORITY,
+  QUEUE_PREFIX,
+  type AgentJobData,
+} from './bullmq-setup.js';
 
 const redis = new Redis({
   host: process.env.REDIS_HOST ?? '127.0.0.1',
@@ -50,6 +56,8 @@ const agentEvents = new QueueEvents('agent-tasks', {
     host: process.env.REDIS_HOST ?? '127.0.0.1',
     port: Number(process.env.REDIS_PORT ?? 6379),
   },
+  // 与队列/Worker 保持同一个 hash tag prefix，Cluster 下才能读到同一组 key
+  prefix: QUEUE_PREFIX,
 });
 
 /** 模拟 LLM 调用，带随机故障 */
