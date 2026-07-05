@@ -1,7 +1,7 @@
 ---
 title: "附录 D｜压测基准数据"
 feishu_url: "https://www.feishu.cn/wiki/RbV6wwHv9i0fYXkOYg0cCiIXnhd"
-last_synced: "2026-05-11T17:30:04.097Z"
+last_synced: "2026-07-05T13:17:34"
 ---
 
 本附录的数字与第 1 章 1.1 节"规模校准"的假设保持一致：1M session、50K 用户侧 QPS、LLM 层 5K-10K 真实并发。读者在 1.1 节看到的换算结论，可以在本附录的 D.2 单点基准和 D.3 端到端压测中找到对应的实测数据。

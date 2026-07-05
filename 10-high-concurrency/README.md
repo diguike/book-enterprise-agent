@@ -1,7 +1,7 @@
 ---
 title: "第 10 章：高并发与稳定性"
 feishu_url: "https://www.feishu.cn/wiki/GbgYwY8Pmis2aOkqgNycknPSnlf"
-last_synced: "2026-05-11T17:29:34.370Z"
+last_synced: "2026-07-05T13:17:27"
 ---
 
 ## 从一次双十一的雪崩说起

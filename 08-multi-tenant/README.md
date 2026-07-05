@@ -1,7 +1,7 @@
 ---
 title: "第 8 章：多租户设计"
 feishu_url: "https://www.feishu.cn/wiki/MRTCwfUatiTbEYkD5V5cvmETnif"
-last_synced: "2026-05-11T17:29:23.503Z"
+last_synced: "2026-07-05T13:17:18"
 ---
 
 ## 从一次"邻居打架"故障说起
