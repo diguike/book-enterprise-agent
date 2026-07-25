@@ -1,0 +1,59 @@
+# AgentFlow 应用配置（非敏感信息）
+# 敏感信息（密码、API Key）放在 Secret 里
+
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: agentflow-config
+  namespace: agentflow
+data:
+  # 应用基本配置
+  APP_NAME: 'agentflow'
+  APP_ENV: 'production'
+  APP_VERSION: 'v1.0.0'
+
+  # 日志
+  LOG_FORMAT: 'json'
+
+  # 第 3 章 Agent 引擎默认 step 数限制
+  AGENT_MAX_STEPS: '8'
+  # Reflector 是否跳过简单任务（成本优化）
+  AGENT_SKIP_REFLECTOR_FOR_SIMPLE: 'true'
+
+  # 第 4 章 LLM Gateway 配置
+  # 默认主模型
+  LLM_DEFAULT_MODEL: 'claude-sonnet-4-5'
+  # 简单任务降级模型
+  LLM_FALLBACK_MODEL: 'claude-haiku-4-5'
+  # prompt caching 是否启用
+  LLM_PROMPT_CACHE_ENABLED: 'true'
+  # 单租户日预算（美元），超出降级 Haiku
+  LLM_TENANT_DAILY_BUDGET_USD: '500'
+
+  # 第 5 章 Skill 沙箱
+  SANDBOX_ENDPOINT: 'http://agentflow-sandbox.agentflow.svc.cluster.local:4000'
+
+  # 第 6 章 RAG
+  VECTOR_STORE: 'pgvector' # 切到 Qdrant 时改成 'qdrant' 或 'dual_write'
+  EMBEDDING_PROVIDER: 'openai' # 切到自托管改 'bge-base-zh'
+  EMBEDDING_MODEL: 'text-embedding-3-small'
+  RAG_TOP_K: '5'
+  RAG_SIMILARITY_THRESHOLD: '0.7'
+
+  # 第 7 章 会话存储
+  SESSION_REDIS_TTL_SECONDS: '3600' # 短期 1 小时
+  SESSION_PG_RETENTION_DAYS: '90'
+
+  # 第 10 章 限流 + 熔断
+  RATE_LIMIT_DEFAULT_PER_MINUTE: '60'
+  CIRCUIT_BREAKER_FAILURE_THRESHOLD: '10'
+  CIRCUIT_BREAKER_HALF_OPEN_AFTER_MS: '30000'
+
+  # 第 11 章 观测
+  OTEL_SERVICE_NAME: 'agentflow-api'
+  OTEL_TRACES_SAMPLER: 'parentbased_traceidratio'
+  OTEL_TRACES_SAMPLER_ARG: '0.1' # 10% 采样
+
+  # 第 12 章 graceful shutdown 配置
+  SHUTDOWN_DRAIN_TIMEOUT_MS: '30000' # readiness 切 503 后等 30 秒
+  SHUTDOWN_FORCE_TIMEOUT_MS: '120000' # 强制关闭超时

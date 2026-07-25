@@ -1,0 +1,76 @@
+# AgentFlow API HorizontalPodAutoscaler
+# 用 CPU + BullMQ 队列深度双指标驱动扩缩
+
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: agentflow-api-hpa
+  namespace: agentflow
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: agentflow-api
+  minReplicas: 3
+  maxReplicas: 20
+  metrics:
+    # 指标 1：CPU 平均利用率
+    # 70% 是经验值，太高扩容不及时，太低过度扩容
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: 70
+    # 指标 2：内存（防止 OOM 前能先扩容）
+    - type: Resource
+      resource:
+        name: memory
+        target:
+          type: Utilization
+          averageUtilization: 80
+    # 指标 3：BullMQ 队列深度（每 Pod 平均不超过 100）
+    # 需要先部署 prometheus-adapter，把 Redis 队列长度暴露成自定义指标
+    - type: External
+      external:
+        metric:
+          name: bullmq_queue_depth
+          selector:
+            matchLabels:
+              queue: agent-tasks
+        target:
+          type: AverageValue
+          averageValue: '100'
+  behavior:
+    # 扩容快：1 分钟稳定窗口，每分钟最多加 4 Pod 或翻倍
+    scaleUp:
+      stabilizationWindowSeconds: 60
+      policies:
+        - type: Pods
+          value: 4
+          periodSeconds: 60
+        - type: Percent
+          value: 100
+          periodSeconds: 60
+      selectPolicy: Max
+    # 缩容慢：5 分钟稳定窗口防止流量抖动反复扩缩
+    scaleDown:
+      stabilizationWindowSeconds: 300
+      policies:
+        - type: Percent
+          value: 50
+          periodSeconds: 60
+      selectPolicy: Max
+---
+# PodDisruptionBudget：保护 API 在节点维护时不被一次性全杀
+# K8s 升级、节点排空时，driver 会尊重 PDB
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: agentflow-api-pdb
+  namespace: agentflow
+spec:
+  minAvailable: 2
+  selector:
+    matchLabels:
+      app: agentflow-api

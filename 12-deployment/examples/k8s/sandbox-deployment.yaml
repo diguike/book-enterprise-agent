@@ -1,0 +1,167 @@
+# AgentFlow Skill 沙箱 Deployment
+# 沙箱进程跑用户的 Skill 代码，必须假定代码有恶意
+
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: agentflow-sandbox
+  namespace: agentflow
+  labels:
+    app: agentflow-sandbox
+    component: sandbox
+    version: v1
+spec:
+  replicas: 5
+  strategy:
+    # 蓝绿发布：通过 Service selector 切换版本
+    # 这里 maxUnavailable=0 是为了滚动更新时容量不降
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 2
+      maxUnavailable: 0
+  selector:
+    matchLabels:
+      app: agentflow-sandbox
+      version: v1
+  template:
+    metadata:
+      labels:
+        app: agentflow-sandbox
+        version: v1
+    spec:
+      # 强 securityContext：用户 Skill 代码不可信
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1001
+        runAsGroup: 1001
+        fsGroup: 1001
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: sandbox
+          image: agentflow/sandbox:v1.0.0
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 4000
+              name: rpc
+          env:
+            - name: NODE_ENV
+              value: production
+            # 沙箱 RPC 监听端口（接收主进程的 Skill 执行请求）
+            - name: SANDBOX_PORT
+              value: '4000'
+            # isolated-vm 单 Isolate 内存上限（MB）
+            # 用户 Skill 超过这个值会被 OOM
+            - name: ISOLATE_MEMORY_MB
+              value: '128'
+            # 单次 Skill 执行超时（毫秒）
+            - name: ISOLATE_TIMEOUT_MS
+              value: '5000'
+            - name: OTEL_EXPORTER_OTLP_ENDPOINT
+              value: 'http://otel-collector.observability.svc.cluster.local:4318'
+          # 资源限制极严：被恶意 Skill 占爆只影响这一个 Pod
+          resources:
+            requests:
+              cpu: 250m
+              memory: 256Mi
+            limits:
+              cpu: 1000m
+              memory: 512Mi
+          # 容器级安全加固
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            runAsNonRoot: true
+            capabilities:
+              drop:
+                - ALL
+          # readOnlyRootFilesystem 后需要 emptyDir 给可写目录
+          volumeMounts:
+            - name: tmp
+              mountPath: /tmp
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 4000
+            initialDelaySeconds: 15
+            periodSeconds: 10
+          readinessProbe:
+            httpGet:
+              path: /health/ready
+              port: 4000
+            initialDelaySeconds: 5
+            periodSeconds: 5
+          # 沙箱关闭：拒绝新 Skill 请求，等已有执行结束
+          lifecycle:
+            preStop:
+              exec:
+                command: ['sh', '-c', 'sleep 10']
+      volumes:
+        - name: tmp
+          emptyDir:
+            sizeLimit: 64Mi
+      # Skill 最长 5 秒，给 30 秒余量
+      terminationGracePeriodSeconds: 30
+      imagePullSecrets:
+        - name: regcred
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: agentflow-sandbox
+  namespace: agentflow
+spec:
+  type: ClusterIP
+  selector:
+    app: agentflow-sandbox
+    # selector 带 version 字段，蓝绿发布时只改这一行就切流量
+    version: v1
+  ports:
+    - name: rpc
+      port: 4000
+      targetPort: 4000
+---
+# NetworkPolicy：沙箱 Pod 进出流量严格限制
+# 防止恶意 Skill 通过 HTTP 外联做坏事
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: sandbox-net-restrict
+  namespace: agentflow
+spec:
+  podSelector:
+    matchLabels:
+      app: agentflow-sandbox
+  policyTypes:
+    - Ingress
+    - Egress
+  # Ingress：只接收 API / Worker 的 RPC 调用
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels:
+              app: agentflow-api
+        - podSelector:
+            matchLabels:
+              app: agentflow-temporal-worker
+      ports:
+        - protocol: TCP
+          port: 4000
+  egress:
+    # 只允许出 DNS（解析自家服务名）
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: kube-system
+      ports:
+        - protocol: UDP
+          port: 53
+    # 只允许访问 OTel collector
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: observability
+      ports:
+        - protocol: TCP
+          port: 4318
+    # 其他外网调用一律禁止

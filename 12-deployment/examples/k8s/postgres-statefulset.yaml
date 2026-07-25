@@ -1,0 +1,203 @@
+# Postgres StatefulSet 演示
+# 生产环境强烈建议用云厂商托管（RDS / Cloud SQL）
+# 这个清单仅用于本地集群（kind / minikube）开发演示
+
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: postgres-config
+  namespace: agentflow
+data:
+  # pgvector 场景优化参数
+  postgresql.conf: |
+    listen_addresses = '*'
+    max_connections = 200
+
+    # 内存（按 16GB 节点配置；按实际节点调整）
+    shared_buffers = 4GB
+    effective_cache_size = 12GB
+    work_mem = 16MB
+    maintenance_work_mem = 256MB
+
+    # SSD 优化
+    random_page_cost = 1.1
+    effective_io_concurrency = 200
+
+    # WAL（流复制需要）
+    wal_level = replica
+    max_wal_senders = 3
+    max_replication_slots = 3
+
+    # pgvector 索引并行构建
+    max_parallel_maintenance_workers = 4
+    max_parallel_workers_per_gather = 2
+
+    # 日志：慢查询定位
+    log_min_duration_statement = 500
+    log_line_prefix = '%t [%p]: db=%d,user=%u '
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: postgres
+  namespace: agentflow
+  labels:
+    app: postgres
+spec:
+  # headless service：StatefulSet 需要稳定的 DNS
+  clusterIP: None
+  selector:
+    app: postgres
+  ports:
+    - port: 5432
+      name: postgres
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: postgres
+  namespace: agentflow
+spec:
+  serviceName: postgres
+  replicas: 1
+  selector:
+    matchLabels:
+      app: postgres
+  template:
+    metadata:
+      labels:
+        app: postgres
+    spec:
+      securityContext:
+        fsGroup: 999  # postgres 镜像的 gid
+      containers:
+        - name: postgres
+          # pgvector 官方镜像（基于 official postgres + pgvector）
+          image: pgvector/pgvector:pg16
+          ports:
+            - containerPort: 5432
+              name: postgres
+          env:
+            - name: POSTGRES_DB
+              value: agentflow
+            - name: POSTGRES_USER
+              valueFrom:
+                secretKeyRef:
+                  name: postgres-secrets
+                  key: username
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: postgres-secrets
+                  key: password
+            # data 目录子路径，让 PVC 挂载点不直接是 PGDATA
+            - name: PGDATA
+              value: /var/lib/postgresql/data/pgdata
+          resources:
+            requests:
+              cpu: 1000m
+              memory: 4Gi
+            limits:
+              cpu: 4000m
+              memory: 16Gi
+          volumeMounts:
+            - name: data
+              mountPath: /var/lib/postgresql/data
+            - name: config
+              mountPath: /etc/postgresql/postgresql.conf
+              subPath: postgresql.conf
+          # 启动后载入自定义配置
+          args:
+            - '-c'
+            - 'config_file=/etc/postgresql/postgresql.conf'
+          readinessProbe:
+            exec:
+              command: ['pg_isready', '-U', 'postgres']
+            initialDelaySeconds: 10
+            periodSeconds: 5
+          livenessProbe:
+            exec:
+              command: ['pg_isready', '-U', 'postgres']
+            initialDelaySeconds: 30
+            periodSeconds: 15
+      volumes:
+        - name: config
+          configMap:
+            name: postgres-config
+  volumeClaimTemplates:
+    - metadata:
+        name: data
+      spec:
+        accessModes: ['ReadWriteOnce']
+        # 生产用 SSD 存储类（gp3 / pd-ssd）
+        storageClassName: standard
+        resources:
+          requests:
+            storage: 100Gi
+---
+# PgBouncer 连接池
+# Transaction 模式与 RLS SET LOCAL 兼容
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: pgbouncer
+  namespace: agentflow
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: pgbouncer
+  template:
+    metadata:
+      labels:
+        app: pgbouncer
+    spec:
+      containers:
+        - name: pgbouncer
+          image: bitnami/pgbouncer:1.22.0
+          ports:
+            - containerPort: 6432
+          env:
+            - name: POSTGRESQL_HOST
+              value: postgres
+            - name: POSTGRESQL_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: postgres-secrets
+                  key: username
+            - name: POSTGRESQL_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: postgres-secrets
+                  key: password
+            - name: POSTGRESQL_DATABASE
+              value: agentflow
+            # transaction 模式：每个事务结束归还连接
+            # 与 RLS SET LOCAL 兼容，与 prepared statement 不兼容
+            - name: PGBOUNCER_POOL_MODE
+              value: transaction
+            - name: PGBOUNCER_MAX_CLIENT_CONN
+              value: '1000'
+            - name: PGBOUNCER_DEFAULT_POOL_SIZE
+              value: '25'
+            - name: PGBOUNCER_RESERVE_POOL_SIZE
+              value: '5'
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              cpu: 500m
+              memory: 256Mi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: pgbouncer
+  namespace: agentflow
+spec:
+  selector:
+    app: pgbouncer
+  ports:
+    - port: 6432
+      targetPort: 6432

@@ -1,0 +1,161 @@
+# AgentFlow API Deployment + Service
+# API 是无状态进程，承接 SSE 流式响应
+
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: agentflow-api
+  namespace: agentflow
+  labels:
+    app: agentflow-api
+    component: api
+spec:
+  replicas: 3
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      # 滚动更新时最多临时多出 1 个 Pod
+      maxSurge: 1
+      # 滚动更新过程中不允许少于期望副本数（保证容量）
+      maxUnavailable: 0
+  selector:
+    matchLabels:
+      app: agentflow-api
+  template:
+    metadata:
+      labels:
+        app: agentflow-api
+        component: api
+      annotations:
+        # 让 Prometheus 自动抓取指标
+        prometheus.io/scrape: 'true'
+        prometheus.io/port: '3000'
+        prometheus.io/path: '/metrics'
+    spec:
+      # 强制非 root 运行，符合 K8s baseline 安全策略
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1001
+        runAsGroup: 1001
+        fsGroup: 1001
+        seccompProfile:
+          type: RuntimeDefault
+      # 同一节点上避免堆多个 API Pod，故障域隔离
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 100
+              podAffinityTerm:
+                labelSelector:
+                  matchLabels:
+                    app: agentflow-api
+                topologyKey: kubernetes.io/hostname
+      containers:
+        - name: api
+          image: agentflow/api:v1.0.0
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 3000
+              name: http
+              protocol: TCP
+          env:
+            - name: NODE_ENV
+              value: production
+            - name: PORT
+              value: '3000'
+            - name: LOG_LEVEL
+              value: info
+            # 数据库连接：通过 PgBouncer 池化
+            - name: DATABASE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: agentflow-secrets
+                  key: database-url
+            # Redis Cluster 入口
+            - name: REDIS_URL
+              valueFrom:
+                secretKeyRef:
+                  name: agentflow-secrets
+                  key: redis-url
+            # LLM 提供商 API Key
+            - name: ANTHROPIC_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: llm-keys
+                  key: anthropic
+            - name: OPENAI_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: llm-keys
+                  key: openai
+            # OTLP collector 地址
+            - name: OTEL_EXPORTER_OTLP_ENDPOINT
+              value: 'http://otel-collector.observability.svc.cluster.local:4318'
+            # Pod 自身信息（用于日志、trace 标注）
+            - name: POD_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+            - name: POD_NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
+          envFrom:
+            - configMapRef:
+                name: agentflow-config
+          # 资源限制：requests 是调度依据，limits 是上限
+          resources:
+            requests:
+              cpu: 500m       # 调度器按这个值找节点
+              memory: 1Gi
+            limits:
+              cpu: 2000m      # 突发可用到 2 核
+              memory: 4Gi     # 超过 4Gi 会被 OOMKilled
+          # readiness：能不能接流量。失败会从 Service Endpoints 摘除（不重启容器）
+          readinessProbe:
+            httpGet:
+              path: /health/ready
+              port: 3000
+            initialDelaySeconds: 10
+            periodSeconds: 5
+            timeoutSeconds: 2
+            failureThreshold: 3
+          # liveness：进程活着吗。失败会重启容器
+          # 注意：只检查进程本身，不要查数据库/Redis 以免误杀
+          livenessProbe:
+            httpGet:
+              path: /health/live
+              port: 3000
+            initialDelaySeconds: 30
+            periodSeconds: 10
+            timeoutSeconds: 3
+            failureThreshold: 3
+          # 优雅关闭：preStop sleep 15 秒等 LB 摘除流量
+          # 期间 Pod 继续服务已有连接
+          lifecycle:
+            preStop:
+              exec:
+                command: ['sh', '-c', 'sleep 15']
+      # 全局优雅关闭超时：必须大于业务最长 SSE 流时长
+      # AgentFlow 最长回答 2 分钟，给 180 秒余量
+      terminationGracePeriodSeconds: 180
+      # imagePullSecrets：私有 registry 的拉取凭证
+      imagePullSecrets:
+        - name: regcred
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: agentflow-api
+  namespace: agentflow
+  labels:
+    app: agentflow-api
+spec:
+  type: ClusterIP
+  selector:
+    app: agentflow-api
+  ports:
+    - name: http
+      port: 80
+      targetPort: 3000
+      protocol: TCP

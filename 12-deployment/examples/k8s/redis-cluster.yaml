@@ -1,0 +1,153 @@
+# Redis Cluster 演示（3 主 3 从）
+# 生产建议用云厂商托管（ElastiCache / Tair / Memorystore）
+# 本清单仅用于本地集群开发演示
+
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: redis-cluster-config
+  namespace: agentflow
+data:
+  redis.conf: |
+    # 启用 Cluster 模式
+    cluster-enabled yes
+    cluster-config-file /data/nodes.conf
+    cluster-node-timeout 5000
+
+    # AOF 持久化（数据安全比性能优先）
+    appendonly yes
+    appendfsync everysec
+
+    # 关闭后台 RDB（避免与 AOF 竞争 IO）
+    save ""
+
+    # 内存策略
+    # AgentFlow 用 Redis 做缓存 + 队列：限流 key 可淘汰，BullMQ 数据不可淘汰
+    # 实践中通常分两个 Redis 部署：可淘汰用 allkeys-lru，BullMQ 用 noeviction
+    maxmemory-policy allkeys-lru
+
+    # 慢日志
+    slowlog-log-slower-than 10000
+    slowlog-max-len 128
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: redis-cluster
+  namespace: agentflow
+spec:
+  clusterIP: None  # headless service
+  selector:
+    app: redis-cluster
+  ports:
+    - port: 6379
+      name: client
+    - port: 16379
+      name: gossip  # Cluster 节点间通信端口
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: redis-cluster
+  namespace: agentflow
+spec:
+  serviceName: redis-cluster
+  # 6 个节点：3 主 3 从。初始化后由 redis-cli --cluster create 编排
+  replicas: 6
+  selector:
+    matchLabels:
+      app: redis-cluster
+  template:
+    metadata:
+      labels:
+        app: redis-cluster
+    spec:
+      # 让 6 个 Pod 尽量分散到不同节点，主从不要在同一物理机
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 100
+              podAffinityTerm:
+                labelSelector:
+                  matchLabels:
+                    app: redis-cluster
+                topologyKey: kubernetes.io/hostname
+      containers:
+        - name: redis
+          image: redis:7.2-alpine
+          command: ['redis-server', '/conf/redis.conf']
+          ports:
+            - containerPort: 6379
+              name: client
+            - containerPort: 16379
+              name: gossip
+          resources:
+            requests:
+              cpu: 250m
+              memory: 1Gi
+            limits:
+              cpu: 1000m
+              memory: 2Gi
+          volumeMounts:
+            - name: conf
+              mountPath: /conf
+            - name: data
+              mountPath: /data
+          livenessProbe:
+            tcpSocket:
+              port: 6379
+            initialDelaySeconds: 15
+            periodSeconds: 10
+          readinessProbe:
+            exec:
+              command: ['redis-cli', 'ping']
+            initialDelaySeconds: 5
+            periodSeconds: 5
+      volumes:
+        - name: conf
+          configMap:
+            name: redis-cluster-config
+  volumeClaimTemplates:
+    - metadata:
+        name: data
+      spec:
+        accessModes: ['ReadWriteOnce']
+        storageClassName: standard
+        resources:
+          requests:
+            storage: 10Gi
+---
+# 初始化 Job：第一次部署后跑一次，把 6 个节点编排成 Cluster
+# 命令等价于：redis-cli --cluster create <pod-ip>:6379 ... --cluster-replicas 1
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: redis-cluster-init
+  namespace: agentflow
+spec:
+  ttlSecondsAfterFinished: 600
+  template:
+    spec:
+      restartPolicy: OnFailure
+      containers:
+        - name: init
+          image: redis:7.2-alpine
+          command:
+            - sh
+            - -c
+            - |
+              # 等所有 6 个 Pod 起来
+              for i in 0 1 2 3 4 5; do
+                until nslookup redis-cluster-$i.redis-cluster.agentflow.svc.cluster.local; do
+                  sleep 2
+                done
+              done
+              # 集群编排：3 主 3 从（--cluster-replicas 1）
+              redis-cli --cluster create \
+                redis-cluster-0.redis-cluster.agentflow.svc.cluster.local:6379 \
+                redis-cluster-1.redis-cluster.agentflow.svc.cluster.local:6379 \
+                redis-cluster-2.redis-cluster.agentflow.svc.cluster.local:6379 \
+                redis-cluster-3.redis-cluster.agentflow.svc.cluster.local:6379 \
+                redis-cluster-4.redis-cluster.agentflow.svc.cluster.local:6379 \
+                redis-cluster-5.redis-cluster.agentflow.svc.cluster.local:6379 \
+                --cluster-replicas 1 --cluster-yes
