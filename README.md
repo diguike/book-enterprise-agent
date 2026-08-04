@@ -16,7 +16,7 @@
 - 知识库 RAG
 - 高并发 / Circuit Breaker / 限流
 - 可观测性 / 审计 / 计费
-- 生产部署与故障排查
+- 生产部署与故障排查（本地 docker compose 起，也可托管到[函数计算 AgentRun](https://dashi.aliyun.com/activity/aiagent?userCode=okjhlpr5)）
 
 读完不仅理解架构，还能 `git clone && docker compose up && npm run dev` 跑起来。
 
